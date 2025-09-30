@@ -1,0 +1,5 @@
+C:/Users/nxs/Documents/Developers/xmlconfig/build/CMakeFiles/imgui.dir
+C:/Users/nxs/Documents/Developers/xmlconfig/build/CMakeFiles/tinyxml2.dir
+C:/Users/nxs/Documents/Developers/xmlconfig/build/CMakeFiles/xmlconfig.dir
+C:/Users/nxs/Documents/Developers/xmlconfig/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/nxs/Documents/Developers/xmlconfig/build/CMakeFiles/ZERO_CHECK.dir

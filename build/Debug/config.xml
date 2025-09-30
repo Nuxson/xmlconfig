@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <settings>
+        <window width="1280" height="720" fullscreen="false"/>
+        <audio volume="80" muted="false"/>
+        <graphics>
+            <quality level="high"/>
+            <shadows enabled="true"/>
+        </graphics>
+    </settings>
+    <user>
+        <name>John</name>
+        <preferences theme="dark" language="en"/>
+    </user>
+</config>

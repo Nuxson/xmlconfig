@@ -1,0 +1,2 @@
+C:\Users\nxs\Documents\Developers\xmlconfig\build\Debug\glfw3.dll
+C:\Users\nxs\Documents\Developers\xmlconfig\build\xmlconfig.dir\Debug\xmlconfig.vcxproj.Up2Date
