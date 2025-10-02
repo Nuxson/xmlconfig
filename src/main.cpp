@@ -5,7 +5,13 @@
 #include <iostream>
 #include <string>
 #include <filesystem>
+#include <algorithm>
+#include <array>
+#include <cstdlib>
+#include <cstdint>
+#include "network_ui.h"
 #include "xml_parser.h"
+#include "tray.h"
 
 // Глобальные переменные
 XMLParser g_parser;
@@ -16,6 +22,36 @@ char g_newAttributeValue[128] = "value";
 char g_nodeValue[1024] = "";
 char g_currentFile[256] = "untitled.xml";
 bool g_unsavedChanges = false;
+static GLFWwindow *g_mainWindow = nullptr;
+static bool g_minimizeToTrayOption = true;
+static bool g_startMinimizedOption = false;
+
+static void onTrayActivate()
+{
+    if (g_mainWindow)
+    {
+        glfwShowWindow(g_mainWindow);
+        glfwRestoreWindow(g_mainWindow);
+        glfwFocusWindow(g_mainWindow);
+    }
+}
+
+static void onWindowCloseCallback(GLFWwindow *win)
+{
+    if (g_minimizeToTrayOption)
+    {
+        glfwHideWindow(win);
+        glfwSetWindowShouldClose(win, GLFW_FALSE);
+    }
+}
+
+// Globals for file dialogs
+static bool g_showLoadDialog = false;
+static bool g_showSaveAsDialog = false;
+static char g_loadFilename[256] = "config.xml";
+static char g_saveAsFilename[256] = "new_config.xml";
+
+// moved to network_ui.h/.cpp
 
 void markUnsavedChanges()
 {
@@ -209,59 +245,25 @@ void renderPropertyEditor()
 
 void renderFileDialogs()
 {
-    static bool showLoadDialog = false;
-    static bool showSaveAsDialog = false;
-    static char loadFilename[256] = "config.xml";
-    static char saveAsFilename[256] = "new_config.xml";
-
-    // Меню файлов
-    if (ImGui::BeginMenuBar())
-    {
-        if (ImGui::BeginMenu("File"))
-        {
-            if (ImGui::MenuItem("New"))
-            {
-                g_parser.createNewDocument("config");
-                g_selectedNode = g_parser.getRoot();
-                strcpy(g_currentFile, "untitled.xml");
-                g_unsavedChanges = false;
-            }
-            if (ImGui::MenuItem("Open..."))
-            {
-                showLoadDialog = true;
-                strcpy(loadFilename, "config.xml");
-            }
-            if (ImGui::MenuItem("Save", nullptr, false, strcmp(g_currentFile, "untitled.xml") != 0))
-            {
-                saveFile(g_currentFile);
-            }
-            if (ImGui::MenuItem("Save As..."))
-            {
-                showSaveAsDialog = true;
-                strcpy(saveAsFilename, g_currentFile);
-            }
-            ImGui::EndMenu();
-        }
-        ImGui::EndMenuBar();
-    }
+    // Note: Menю обрабатывается в верхней панели, здесь только сами попапы
 
     // Диалог загрузки
-    if (showLoadDialog)
+    if (g_showLoadDialog)
     {
         ImGui::OpenPopup("Load File");
-        showLoadDialog = false;
+        g_showLoadDialog = false;
     }
 
     if (ImGui::BeginPopupModal("Load File", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::Text("Load XML File:");
-        ImGui::InputText("Filename", loadFilename, sizeof(loadFilename));
+        ImGui::InputText("Filename", g_loadFilename, sizeof(g_loadFilename));
 
         ImGui::Text("Examples: config.xml, settings.xml, data.xml");
 
         if (ImGui::Button("Load", ImVec2(120, 0)))
         {
-            loadFile(loadFilename);
+            loadFile(g_loadFilename);
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
@@ -273,22 +275,22 @@ void renderFileDialogs()
     }
 
     // Диалог сохранения как
-    if (showSaveAsDialog)
+    if (g_showSaveAsDialog)
     {
         ImGui::OpenPopup("Save As");
-        showSaveAsDialog = false;
+        g_showSaveAsDialog = false;
     }
 
     if (ImGui::BeginPopupModal("Save As", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::Text("Save XML File As:");
-        ImGui::InputText("Filename", saveAsFilename, sizeof(saveAsFilename));
+        ImGui::InputText("Filename", g_saveAsFilename, sizeof(g_saveAsFilename));
 
         ImGui::Text("Examples: my_config.xml, backup.xml, settings_new.xml");
 
         if (ImGui::Button("Save", ImVec2(120, 0)))
         {
-            saveFile(saveAsFilename);
+            saveFile(g_saveAsFilename);
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
@@ -318,18 +320,25 @@ int main()
         return -1;
     }
     glfwMakeContextCurrent(window);
+    g_mainWindow = window;
+    glfwSetWindowCloseCallback(window, onWindowCloseCallback);
 
     // Настройка ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
-    (void)io;
-
+#ifdef XMLCONFIG_ENABLE_DOCKING
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // enable docking (requires docking-enabled ImGui)
+#endif
     ImGui::StyleColorsDark();
 
     // Инициализация рендереров
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
+
+    // Трей
+    trayInitialize();
+    traySetOnActivate(onTrayActivate);
 
     // Инициализация XML парсера с примером
     g_parser.createNewDocument("config");
@@ -342,42 +351,243 @@ int main()
 
     g_selectedNode = root;
 
+    // Если выбрано стартовать свёрнутым — спрячем окно
+    if (g_startMinimizedOption)
+    {
+        glfwHideWindow(window);
+    }
+
     // Главный цикл
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+
+        // Auto-hide taskbar icon when minimized (Windows-specific behavior via GLFW hints is limited)
+        if (g_minimizeToTrayOption)
+        {
+            int iconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED);
+            if (iconified)
+            {
+                // Hide window until restored via tray callback
+                glfwHideWindow(window);
+            }
+        }
 
         // Начало кадра ImGui
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Главное окно
-        ImGui::Begin("XML Config Editor", nullptr, ImGuiWindowFlags_MenuBar);
+#ifdef XMLCONFIG_ENABLE_DOCKING
+        // DockSpace host (fullscreen)
+        ImGuiWindowFlags dockspace_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+                                           ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                                           ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::Begin("DockSpace", nullptr, dockspace_flags);
+        ImGui::PopStyleVar(2);
 
-        // Меню и диалоги файлов
+        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), 0);
+
+        // persistent view toggles
+        static bool showXmlTreeWin = true;
+        static bool showPropertiesWin = true;
+        static bool showNetworkWin = true;
+        static bool showStatusBarWin = true;
+
+        // Menu bar (File/View) — без Debug
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("New"))
+                {
+                    g_parser.createNewDocument("config");
+                    g_selectedNode = g_parser.getRoot();
+                    strcpy(g_currentFile, "untitled.xml");
+                    g_unsavedChanges = false;
+                }
+                if (ImGui::MenuItem("Open..."))
+                {
+                    g_showLoadDialog = true; strcpy(g_loadFilename, "config.xml");
+                }
+                bool canSave = strcmp(g_currentFile, "untitled.xml") != 0;
+                if (ImGui::MenuItem("Save", nullptr, false, canSave))
+                {
+                    saveFile(g_currentFile);
+                }
+                if (ImGui::MenuItem("Save As..."))
+                {
+                    g_showSaveAsDialog = true; strcpy(g_saveAsFilename, g_currentFile);
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("View"))
+            {
+                ImGui::MenuItem("XML Tree", nullptr, &showXmlTreeWin);
+                ImGui::MenuItem("Properties", nullptr, &showPropertiesWin);
+                ImGui::MenuItem("Network Tools", nullptr, &showNetworkWin);
+                ImGui::MenuItem("Status Bar", nullptr, &showStatusBarWin);
+            if (ImGui::BeginMenu("Settings"))
+                {
+                    if (ImGui::MenuItem("Shortcuts"))
+                    {
+                        // Open Network Tools where shortcuts live for now
+                        showNetworkWin = true;
+                    }
+                if (ImGui::MenuItem("Tray Options")) {}
+                ImGui::Checkbox("Start minimized to tray", &g_startMinimizedOption);
+                ImGui::Checkbox("Minimize to tray on close/minimize", &g_minimizeToTrayOption);
+                    {
+                        // Persist options later if needed
+                    }
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        // File dialogs popups
         renderFileDialogs();
 
-        // Статус бар
-        ImGui::Text("File: %s %s", g_currentFile, g_unsavedChanges ? "*" : "");
-        ImGui::Separator();
+        // Separate windows
+        if (showXmlTreeWin)
+        {
+            ImGui::Begin("XML Tree");
+            renderXmlTree(g_parser.getRoot());
+            ImGui::End();
+        }
 
-        // Разделяем окно на две колонки
-        ImGui::Columns(2, "xml_editor", true);
+        if (showPropertiesWin)
+        {
+            ImGui::Begin("Properties");
+            renderPropertyEditor();
+            ImGui::End();
+        }
 
-        // Левая колонка - дерево XML
-        ImGui::Text("XML Structure");
-        ImGui::Separator();
-        renderXmlTree(g_parser.getRoot());
+        if (showNetworkWin)
+        {
+            ImGui::Begin("Network Tools");
+            renderNetworkTools();
+            ImGui::End();
+        }
 
-        ImGui::NextColumn();
-
-        // Правая колонка - редактор свойств
-        ImGui::Text("Properties");
-        ImGui::Separator();
-        renderPropertyEditor();
+        // Status Bar window
+        if (showStatusBarWin)
+        {
+            ImGuiWindowFlags sb_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+            ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + viewport->Size.y - 22.0f));
+            ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, 22.0f));
+            ImGui::Begin("Status Bar", nullptr, sb_flags);
+            ImGui::Text("File: %s %s", g_currentFile, g_unsavedChanges ? "*" : "");
+            ImGui::End();
+        }
 
         ImGui::End();
+#else
+        // Fallback layout without docking: independent top-level windows + global menu bar
+        static bool showXmlTreeWin = true;
+        static bool showPropertiesWin = true;
+        static bool showNetworkWin = true;
+        static bool showStatusBarWin = true;
+
+        // Global Main Menu Bar — без Debug
+        if (ImGui::BeginMainMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("New"))
+                {
+                    g_parser.createNewDocument("config");
+                    g_selectedNode = g_parser.getRoot();
+                    strcpy(g_currentFile, "untitled.xml");
+                    g_unsavedChanges = false;
+                }
+                if (ImGui::MenuItem("Open..."))
+                {
+                    g_showLoadDialog = true; strcpy(g_loadFilename, "config.xml");
+                }
+                bool canSave = strcmp(g_currentFile, "untitled.xml") != 0;
+                if (ImGui::MenuItem("Save", nullptr, false, canSave))
+                {
+                    saveFile(g_currentFile);
+                }
+                if (ImGui::MenuItem("Save As..."))
+                {
+                    g_showSaveAsDialog = true; strcpy(g_saveAsFilename, g_currentFile);
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("View"))
+            {
+                ImGui::MenuItem("XML Tree", nullptr, &showXmlTreeWin);
+                ImGui::MenuItem("Properties", nullptr, &showPropertiesWin);
+                ImGui::MenuItem("Network Tools", nullptr, &showNetworkWin);
+                ImGui::MenuItem("Status Bar", nullptr, &showStatusBarWin);
+            if (ImGui::BeginMenu("Settings"))
+                {
+                    if (ImGui::MenuItem("Shortcuts"))
+                    {
+                        showNetworkWin = true;
+                    }
+                if (ImGui::MenuItem("Tray Options")) {}
+                ImGui::Checkbox("Start minimized to tray", &g_startMinimizedOption);
+                ImGui::Checkbox("Minimize to tray on close/minimize", &g_minimizeToTrayOption);
+                    {
+                        // Persist options later if needed
+                    }
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
+
+        // File dialogs popups
+        renderFileDialogs();
+
+        // Independent windows
+        if (showXmlTreeWin)
+        {
+            ImGui::Begin("XML Tree");
+            renderXmlTree(g_parser.getRoot());
+            ImGui::End();
+        }
+
+        if (showPropertiesWin)
+        {
+            ImGui::Begin("Properties");
+            renderPropertyEditor();
+            ImGui::End();
+        }
+
+        if (showNetworkWin)
+        {
+            ImGui::Begin("Network Tools");
+            renderNetworkTools();
+            ImGui::End();
+        }
+
+        // Status Bar window at bottom
+        if (showStatusBarWin)
+        {
+            ImGuiIO &fio = ImGui::GetIO();
+            ImGuiWindowFlags sb_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+                                        ImGuiWindowFlags_NoInputs;
+            ImGui::SetNextWindowPos(ImVec2(0.0f, fio.DisplaySize.y - 22.0f));
+            ImGui::SetNextWindowSize(ImVec2(fio.DisplaySize.x, 22.0f));
+            ImGui::Begin("Status Bar", nullptr, sb_flags);
+            ImGui::Text("File: %s %s", g_currentFile, g_unsavedChanges ? "*" : "");
+            ImGui::End();
+        }
+#endif
 
         // Рендеринг
         ImGui::Render();
@@ -398,6 +608,8 @@ int main()
 
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    trayShutdown();
 
     return 0;
 }

@@ -53,6 +53,11 @@ target_include_directories(tinyxml2 PUBLIC third_party/tinyxml2)
 add_executable(xmlconfig
     src/main.cpp
     src/xml_parser.cpp
+    src/network_tools.cpp
+    src/network_ui.cpp
+    src/profiles.cpp
+    src/shortcuts.cpp
+    src/tray_win.cpp
 )
 
 target_include_directories(xmlconfig PRIVATE

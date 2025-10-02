@@ -7,6 +7,21 @@
     <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\xml_parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\network_tools.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\network_ui.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\profiles.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\shortcuts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\tray_win.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\nxs\Documents\Developers\xmlconfig\CMakeLists.txt" />

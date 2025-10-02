@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config>
     <settings>
-        <window width="1280" height="720" fullscreen="false"/>
+        <window width="12800" height="7200" fullscreen="false">
+            <root/>
+        </window>
         <audio volume="80" muted="false"/>
         <graphics>
             <quality level="high"/>

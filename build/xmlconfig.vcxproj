@@ -330,6 +330,11 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   <ItemGroup>
     <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\main.cpp" />
     <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\xml_parser.cpp" />
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\network_tools.cpp" />
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\network_ui.cpp" />
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\profiles.cpp" />
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\shortcuts.cpp" />
+    <ClCompile Include="C:\Users\nxs\Documents\Developers\xmlconfig\src\tray_win.cpp" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

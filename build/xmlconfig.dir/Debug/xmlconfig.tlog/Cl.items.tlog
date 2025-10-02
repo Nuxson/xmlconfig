@@ -1,2 +1,7 @@
 C:\Users\nxs\Documents\Developers\xmlconfig\src\main.cpp;C:\Users\nxs\Documents\Developers\xmlconfig\build\xmlconfig.dir\Debug\main.obj
 C:\Users\nxs\Documents\Developers\xmlconfig\src\xml_parser.cpp;C:\Users\nxs\Documents\Developers\xmlconfig\build\xmlconfig.dir\Debug\xml_parser.obj
+C:\Users\nxs\Documents\Developers\xmlconfig\src\network_tools.cpp;C:\Users\nxs\Documents\Developers\xmlconfig\build\xmlconfig.dir\Debug\network_tools.obj
+C:\Users\nxs\Documents\Developers\xmlconfig\src\network_ui.cpp;C:\Users\nxs\Documents\Developers\xmlconfig\build\xmlconfig.dir\Debug\network_ui.obj
+C:\Users\nxs\Documents\Developers\xmlconfig\src\profiles.cpp;C:\Users\nxs\Documents\Developers\xmlconfig\build\xmlconfig.dir\Debug\profiles.obj
+C:\Users\nxs\Documents\Developers\xmlconfig\src\shortcuts.cpp;C:\Users\nxs\Documents\Developers\xmlconfig\build\xmlconfig.dir\Debug\shortcuts.obj
+C:\Users\nxs\Documents\Developers\xmlconfig\src\tray_win.cpp;C:\Users\nxs\Documents\Developers\xmlconfig\build\xmlconfig.dir\Debug\tray_win.obj
